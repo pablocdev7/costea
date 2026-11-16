@@ -10,14 +10,17 @@ function sign(n: number): string {
   return n < 0 && Math.round(Math.abs(n) * 100) > 0 ? '−' : '';
 }
 
+/** Espacio duro entre el signo y el número: así "$" nunca queda solo al final de una línea. */
+const SP = '\u00A0';
+
 /** $ 1.234,56 */
 export function ars(n: number): string {
-  return sign(n) + '$ ' + nf2.format(Math.abs(n));
+  return sign(n) + '$' + SP + nf2.format(Math.abs(n));
 }
 
 /** US$ 1.234,56 */
 export function usd(n: number): string {
-  return sign(n) + 'US$ ' + nf2.format(Math.abs(n));
+  return sign(n) + 'US$' + SP + nf2.format(Math.abs(n));
 }
 
 export function money(cur: string | undefined, n: number): string {

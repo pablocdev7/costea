@@ -2,15 +2,21 @@ import { describe, expect, it } from 'vitest';
 import { ars, csvNum, money, usd } from '../src/calc';
 import { emptyState, newest, normalize, parseImport } from '../src/state';
 
+// Normaliza el espacio duro para comparar.
+const plain = (s: string) => s.replace(/\u00A0/g, ' ');
+
 describe('formato de dinero', () => {
   it('siempre 2 decimales, formato argentino', () => {
-    expect(ars(1234.56)).toBe('$ 1.234,56');
-    expect(ars(1000000)).toBe('$ 1.000.000,00');
-    expect(ars(-50.5)).toBe('−$ 50,50');
-    expect(ars(-0.001)).toBe('$ 0,00');
-    expect(usd(12.3)).toBe('US$ 12,30');
-    expect(money('USD', 1)).toBe('US$ 1,00');
-    expect(money('ARS', 1)).toBe('$ 1,00');
+    expect(plain(ars(1234.56))).toBe('$ 1.234,56');
+    expect(plain(ars(1000000))).toBe('$ 1.000.000,00');
+    expect(plain(ars(-50.5))).toBe('−$ 50,50');
+    expect(plain(ars(-0.001))).toBe('$ 0,00');
+    expect(plain(usd(12.3))).toBe('US$ 12,30');
+    expect(plain(money('USD', 1))).toBe('US$ 1,00');
+    expect(plain(money('ARS', 1))).toBe('$ 1,00');
+  });
+  it('el signo no se separa del número', () => {
+    expect(ars(5)).toBe('$\u00A05,00');
   });
   it('CSV con coma decimal', () => {
     expect(csvNum(1234.567)).toBe('1234,57');
