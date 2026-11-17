@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="es-AR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Cuentas del mes</title>
+<meta name="description" content="Tus cuentas del mes: ingresos, gastos, tarjetas, deudas y Uber.">
+<meta name="theme-color" content="#f1f3f7" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0e131b" media="(prefers-color-scheme: dark)">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="Cuentas">
+<link rel="icon" href="/favicon.ico" sizes="48x48">
+<link rel="icon" href="/icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="/apple-touch-icon-180x180.png">
+<link rel="manifest" href="/manifest.webmanifest">
+</head>
+<body>
+<div id="boot" class="boot" role="status">Cargando…</div>
+
+<div id="login" class="wrap login" hidden>
+  <section class="card" style="--c:var(--accent);--cs:var(--accent-s)">
+    <h1>Cuentas</h1>
+    <p class="hint">Entrá con tu email y contraseña.</p>
+    <form id="lform" novalidate>
+      <label class="fld" for="l-email"><span>Email</span><input id="l-email" name="email" type="email" autocomplete="username" inputmode="email" required></label>
+      <label class="fld" for="l-pass"><span>Contraseña</span><input id="l-pass" name="password" type="password" autocomplete="current-password" required></label>
+      <p id="l-err" class="err" role="alert" hidden></p>
+      <button class="btn pri block" type="submit">Entrar</button>
+    </form>
+  </section>
+</div>
+
+<div id="app" hidden>
+  <div class="wrap">
+    <header class="head">
+      <div class="head-top"><h1>Cuentas del mes</h1><div class="head-r"><span id="save" class="save" role="status"></span><button class="link" type="button" data-act="tab" data-tab="datos">Datos</button></div></div>
+      <div class="head-ctrl">
+        <div class="month"><button type="button" data-act="prev" aria-label="Mes anterior">‹</button><strong id="mlabel"></strong><button type="button" data-act="next" aria-label="Mes siguiente">›</button></div>
+        <label class="rate" for="rate">Dólar $ <input id="rate" type="number" step="any" inputmode="decimal" title="Pesos por cada dólar. Convierte lo que está en USD."></label>
+      </div>
+      <p id="mrange" class="hint" hidden></p>
+    </header>
+    <div id="banner" class="banner" hidden></div>
+    <main id="view"></main>
+  </div>
+  <nav class="nav" aria-label="Secciones"><div class="nav-in" id="nav"></div></nav>
+  <div id="sheet" class="sheet-ov" hidden><div class="sheet" role="dialog" aria-modal="true" aria-labelledby="sh-title"><div class="sheet-h"><h2 id="sh-title"></h2><button class="x" type="button" data-act="sheet-close" aria-label="Cerrar">×</button></div><div id="sh-body"></div></div></div>
+</div>
+
+<div id="note" class="toast" role="status" aria-live="polite" hidden></div>
+<div id="upd" class="upd" role="status" hidden><span>Hay una versión nueva de Cuentas.</span><button type="button" id="upd-go">Actualizar</button></div>
+<script type="module" src="/src/main.ts"></script>
+</body>
+</html>
