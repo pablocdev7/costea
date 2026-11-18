@@ -249,3 +249,31 @@ test('cuenta pendiente de punta a punta: crear, ingreso Uber, retirar y actualiz
   expect(await pesos(plataHoy)).toBeCloseTo(cash0 + 30000, 2);
   await noHorizontalScroll(page);
 });
+
+test('iOS: los campos tienen letra de 16px o más y los botones no esperan el doble toque', async ({ page }) => {
+  await new FakeSupabase(richState()).install(page);
+  await login(page);
+  await expect(page.getByRole('heading', { name: 'Cuentas del mes' })).toBeVisible();
+  await expect(page.locator('meta[name=viewport]')).not.toHaveAttribute('content', /maximum-scale|user-scalable/);
+  const check = async () => {
+    const bad = await page.evaluate(() => [
+      ...[...document.querySelectorAll('input,select,textarea')].filter((e) => parseFloat(getComputedStyle(e).fontSize) < 16).map((e) => 'campo ' + (e.getAttribute('name') || e.id || e.tagName)),
+      ...[...document.querySelectorAll('button')].filter((e) => getComputedStyle(e).touchAction !== 'manipulation').map((e) => 'botón ' + (e.textContent || '').trim()),
+    ]);
+    expect(bad).toEqual([]);
+  };
+  for (const name of ['Resumen', 'Ingresos', 'Hoy', 'Gastos', 'Deudas', 'Análisis']) {
+    await nav(page, name).click();
+    await check();
+  }
+  await page.getByRole('button', { name: 'Datos' }).click();
+  await check();
+  await page.getByRole('button', { name: 'Cuentas', exact: true }).click();
+  await check();
+  await page.getByRole('button', { name: '+ Cuenta', exact: true }).click();
+  await check();
+  await page.keyboard.press('Escape');
+  await page.getByRole('button', { name: '+ Cuenta pendiente' }).click();
+  await check();
+  await noHorizontalScroll(page);
+});
