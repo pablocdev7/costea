@@ -41,9 +41,16 @@ export function normalize(input: unknown): State {
   x.stmts = x.stmts && typeof x.stmts === 'object' ? x.stmts : {};
   x.accounts = Array.isArray(x.accounts) ? x.accounts : [];
   x.accounts.forEach((a) => { if (a.pending) a.pending = true; else delete a.pending; });
+  // La cuenta destino tiene que existir y ser disponible; si no, la cuenta queda sin destino vinculado.
+  x.accounts.forEach((a) => {
+    const to = a.withdrawTo && x.accounts.find((b) => b.id === a.withdrawTo);
+    if (!a.pending || !to || to.pending) delete a.withdrawTo;
+  });
+  x.defAcc = x.defAcc || '';
+  // Una cuenta pendiente no puede ser la de por defecto.
+  if (x.accounts.some((a) => a.id === x.defAcc && a.pending)) { const f = x.accounts.find((a) => !a.pending); x.defAcc = f ? f.id : ''; }
   x.gastos = Array.isArray(x.gastos) ? x.gastos : [];
   x.transfers = Array.isArray(x.transfers) ? x.transfers : [];
-  x.defAcc = x.defAcc || '';
   x.carDaily = num(x.carDaily);
   Object.keys(x.months).forEach((k) => {
     const m = x.months[k];

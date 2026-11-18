@@ -3,11 +3,11 @@ import { dateOf, dstr, periodKey, totals, type Totals } from '../calc';
 import { emptyState, ensureMonth } from '../state';
 import type { Month, State } from '../types';
 
-export type Tab = 'resumen' | 'income' | 'uber' | 'expenses' | 'debts' | 'analisis' | 'datos';
+export type Tab = 'resumen' | 'income' | 'uber' | 'expenses' | 'debts' | 'analisis' | 'datos' | 'cuentas';
 export type UType = 'in' | 'out' | 'exp';
 
 export interface SheetCtx {
-  kind: 'item' | 'debt' | 'payloan' | 'payfixed' | 'card' | 'consumo' | 'stmt' | 'account' | 'transfer' | 'cash';
+  kind: 'item' | 'debt' | 'payloan' | 'payfixed' | 'card' | 'consumo' | 'stmt' | 'account' | 'pending' | 'withdraw' | 'adjust' | 'transfer' | 'cash';
   sec?: 'income' | 'fixed';
   id?: string | null;
   mk?: string;

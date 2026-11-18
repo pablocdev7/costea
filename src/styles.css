@@ -46,7 +46,10 @@ p{margin:0}
 input,select,button,textarea{font:inherit;color:inherit}
 input[type=text],input[type=number],input[type=date],select{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:.6rem .7rem;min-width:0;width:100%}
 input[type=number]{font-family:var(--mono);font-variant-numeric:tabular-nums}
-input:focus-visible,select:focus-visible,button:focus-visible,label:focus-within{outline:2px solid var(--accent);outline-offset:1px}
+/* Sin remarcado azul al tocar o enfocar un campo: solo se oscurece el borde. Los botones conservan el
+   contorno cuando se navega con teclado (focus-visible no aparece al tocarlos). */
+input:focus,select:focus,textarea:focus{outline:none;border-color:var(--muted)}
+button:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
 input[type=checkbox]{width:1.5rem;height:1.5rem;accent-color:var(--c,var(--accent));margin:0;cursor:pointer;flex:none}
 
 .head{padding-top:max(16px,env(safe-area-inset-top,0px));padding-bottom:10px;display:flex;flex-direction:column;gap:10px}
@@ -90,8 +93,11 @@ main{display:flex;flex-direction:column;gap:14px}
 .add{border:1px dashed var(--c,var(--line));background:transparent;border-radius:10px;padding:.7rem;color:var(--c,var(--accent));cursor:pointer;font-weight:600;width:100%}
 .add:hover{background:var(--cs,var(--accent-s))}
 .empty{font-size:.88rem;color:var(--muted);padding:4px 0}
-.accgrp{margin-top:10px}.accgrp+.accgrp{margin-top:16px}
-.accgrp-h{display:flex;justify-content:space-between;align-items:baseline;gap:12px;margin-bottom:2px}
+.acc-acts{grid-column:1/-1;margin-top:2px}
+button.kpi{border:0;font:inherit;color:inherit;text-align:left;cursor:pointer}
+button.kpi:hover{background:var(--cs,var(--accent-s))}
+.kpi small{font-size:.74rem;color:var(--muted)}
+.three.two{grid-template-columns:repeat(2,minmax(0,1fr))}
 .btn{display:inline-block;border:1px solid var(--line);background:var(--surface);border-radius:10px;padding:.65rem 1rem;cursor:pointer;font-weight:600;text-align:center}
 .btn:hover{background:var(--accent-s)}
 .btn.pri{background:var(--c,var(--accent));border-color:var(--c,var(--accent));color:var(--surface)}
@@ -193,7 +199,7 @@ details>summary{cursor:pointer;color:var(--muted);font-size:.86rem;padding:4px 0
 @media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
 
 /* ---------- agregado en la PWA ---------- */
-body{margin:0}
+body{margin:0;-webkit-tap-highlight-color:transparent}
 .boot{min-height:60vh;display:flex;align-items:center;justify-content:center;color:var(--muted)}
 /* login */
 .login{min-height:100vh;min-height:100dvh;display:flex;align-items:center;justify-content:center;padding:24px 0}

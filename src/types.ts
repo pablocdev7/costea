@@ -130,6 +130,8 @@ export interface Account {
   /** Plata acumulada en una app (Uber, Didi, Cabify) que todavía no se retiró:
    *  no cuenta como plata disponible. Sin el campo = disponible. */
   pending?: boolean;
+  /** Solo cuentas pendientes: cuenta disponible a la que se retira por defecto. */
+  withdrawTo?: string;
 }
 
 export interface Transfer {
