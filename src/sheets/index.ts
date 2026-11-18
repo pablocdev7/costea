@@ -3,7 +3,7 @@ import { ctx, mo, pk, tot, type SheetCtx } from '../app/ctx';
 import { $, esc, note, st } from '../app/dom';
 import { CATS } from '../state';
 import { nid } from '../calc/util';
-import type { Cur, Debt } from '../types';
+import type { Account, Cur, Debt } from '../types';
 import { SC } from '../views/rows';
 
 type Opt = [string, string];
@@ -110,6 +110,7 @@ export function accountSheet(id: string | null): void {
   const S = ctx.S, a = id ? S.accounts.find((x) => x.id === id) : null;
   openSheet({ kind: 'account', id }, id ? 'Editar cuenta' : 'Nueva cuenta',
     fi('Nombre', 'name', 'text', a ? a.name : '', ' placeholder="Ej: Cuenta del auto" required') + fi('Saldo hoy ($ ARS)', 'bal', 'number', a ? r2(accBal(S, a)) : '', ' required')
+    + fs('Tipo', 'pending', [['0', 'Disponible'], ['1', 'Pendiente de retiro']], a && a.pending ? '1' : '0')
     + ((a || S.accounts.length) ? fs('¿Cuenta por defecto?', 'def', [['0', 'No'], ['1', 'Sí, usarla por defecto']], a && a.id === S.defAcc ? '1' : '0') : '')
     + '<p class="hint">El saldo que pongas es el de este momento. Desde acá se mueve solo con lo que registres.</p>', 'Guardar', !!id, false, 'accent');
 }
@@ -215,8 +216,9 @@ export function submitSheet(form: HTMLFormElement): boolean {
     const an = str(fd, 'name').trim();
     if (!an) { note('Poné un nombre.'); return false; }
     const bal = num(str(fd, 'bal')), ac = c.id ? S.accounts.find((x) => x.id === c.id) : null;
-    if (ac) { ac.name = an; ac.base = bal; ac.baseAt = Date.now(); if (str(fd, 'def') === '1') S.defAcc = ac.id; }
-    else { const na = { id: nid(), name: an, base: bal, baseAt: Date.now() }; S.accounts.push(na); if (!S.defAcc || str(fd, 'def') === '1') S.defAcc = na.id; }
+    const pend = str(fd, 'pending') === '1';
+    if (ac) { ac.name = an; ac.base = bal; ac.baseAt = Date.now(); if (pend) ac.pending = true; else delete ac.pending; if (str(fd, 'def') === '1') S.defAcc = ac.id; }
+    else { const na: Account = { id: nid(), name: an, base: bal, baseAt: Date.now() }; if (pend) na.pending = true; S.accounts.push(na); if (!S.defAcc || str(fd, 'def') === '1') S.defAcc = na.id; }
   } else if (c.kind === 'transfer') {
     const tf = str(fd, 'from'), tt = str(fd, 'to'), ta = num(str(fd, 'amt'));
     if (tf === tt || !(ta > 0)) { note('Elegí dos cuentas distintas y un monto mayor a cero.'); return false; }

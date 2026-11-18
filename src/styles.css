@@ -90,6 +90,8 @@ main{display:flex;flex-direction:column;gap:14px}
 .add{border:1px dashed var(--c,var(--line));background:transparent;border-radius:10px;padding:.7rem;color:var(--c,var(--accent));cursor:pointer;font-weight:600;width:100%}
 .add:hover{background:var(--cs,var(--accent-s))}
 .empty{font-size:.88rem;color:var(--muted);padding:4px 0}
+.accgrp{margin-top:10px}.accgrp+.accgrp{margin-top:16px}
+.accgrp-h{display:flex;justify-content:space-between;align-items:baseline;gap:12px;margin-bottom:2px}
 .btn{display:inline-block;border:1px solid var(--line);background:var(--surface);border-radius:10px;padding:.65rem 1rem;cursor:pointer;font-weight:600;text-align:center}
 .btn:hover{background:var(--accent-s)}
 .btn.pri{background:var(--c,var(--accent));border-color:var(--c,var(--accent));color:var(--surface)}

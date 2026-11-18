@@ -40,6 +40,7 @@ export function normalize(input: unknown): State {
   x.consumos = Array.isArray(x.consumos) ? x.consumos : [];
   x.stmts = x.stmts && typeof x.stmts === 'object' ? x.stmts : {};
   x.accounts = Array.isArray(x.accounts) ? x.accounts : [];
+  x.accounts.forEach((a) => { if (a.pending) a.pending = true; else delete a.pending; });
   x.gastos = Array.isArray(x.gastos) ? x.gastos : [];
   x.transfers = Array.isArray(x.transfers) ? x.transfers : [];
   x.defAcc = x.defAcc || '';

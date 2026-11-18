@@ -39,8 +39,19 @@ export function accBal(S: State, a: Account): number {
   return balWith(a, flowsAll(S));
 }
 
-/** Suma de los saldos de todas las cuentas. */
+/** Suma de los saldos de las cuentas disponibles (sin las pendientes de retiro). */
 export function accTotal(S: State): number {
   const fl = flowsAll(S);
-  return S.accounts.reduce((s, a) => s + balWith(a, fl), 0);
+  return S.accounts.reduce((s, a) => (a.pending ? s : s + balWith(a, fl)), 0);
+}
+
+/** Suma de los saldos de las cuentas pendientes de retiro. */
+export function pendingTotal(S: State): number {
+  const fl = flowsAll(S);
+  return S.accounts.reduce((s, a) => (a.pending ? s + balWith(a, fl) : s), 0);
+}
+
+/** ¿Hay alguna cuenta disponible? Si no, la plata de hoy se ajusta a mano. */
+export function hasAvail(S: State): boolean {
+  return S.accounts.some((a) => !a.pending);
 }

@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { accBal, accTotal, flowsAll } from '../src/calc';
+import { accBal, accTotal, flowsAll, pendingTotal, totals } from '../src/calc';
+import { normalize } from '../src/state';
 import { mkState } from './helpers';
 
 const T0 = 1_000_000;
@@ -55,5 +56,47 @@ describe('saldos por cuenta', () => {
     const fl = flowsAll(sample());
     expect(fl.some((f) => f.amt === 77777)).toBe(false);
     expect(fl.some((f) => f.amt === -9000)).toBe(false);
+  });
+});
+
+describe('cuentas pendientes de retiro', () => {
+  function withApp() {
+    const S = mkState({
+      defAcc: 'a1',
+      accounts: [
+        { id: 'a1', name: 'Banco', base: 100000, baseAt: T0 },
+        { id: 'a2', name: 'Uber', base: 40000, baseAt: T0, pending: true },
+      ],
+      months: { '2026-05': { income: [], fixed: [{ id: 'f1', name: 'Luz', amt: 9000, cur: 'ARS', done: false }] } },
+    });
+    return S;
+  }
+
+  it('el total disponible no incluye las pendientes; pendingTotal las suma aparte', () => {
+    const S = withApp();
+    expect(accBal(S, S.accounts[1])).toBe(40000);
+    expect(accTotal(S)).toBe(100000);
+    expect(pendingTotal(S)).toBe(40000);
+  });
+
+  it('plata hoy y cierre proyectado usan solo lo disponible', () => {
+    const t = totals(withApp(), '2026-05', '2026-05');
+    expect(t.cash).toBe(100000);
+    expect(t.close).toBe(91000);
+  });
+
+  it('transferir de una pendiente a una disponible pasa el monto a disponible', () => {
+    const S = withApp();
+    S.transfers.push({ id: 't1', from: 'a2', to: 'a1', amt: 15000, ts: T0 + 1 });
+    expect(accTotal(S)).toBe(115000);
+    expect(pendingTotal(S)).toBe(25000);
+    expect(totals(S, '2026-05', '2026-05').cash).toBe(115000);
+  });
+
+  it('normalize: cuentas viejas sin el campo siguen disponibles', () => {
+    const S = normalize({ v: 4, accounts: [{ id: 'a1', name: 'Banco', base: 500, baseAt: T0 }] });
+    expect(S.accounts[0].pending).toBeUndefined();
+    expect(accTotal(S)).toBe(500);
+    expect(pendingTotal(S)).toBe(0);
   });
 });

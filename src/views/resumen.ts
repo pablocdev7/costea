@@ -1,13 +1,24 @@
-import { accBal, accTotal, ars, num, orderList, usd } from '../calc';
+import { accBal, accTotal, ars, hasAvail, num, orderList, pendingTotal, usd } from '../calc';
 import { ctx, mo, tot } from '../app/ctx';
 import { cardHead, esc, st } from '../app/dom';
+import type { State } from '../types';
 import { entryRow, itemRow, when } from './rows';
 
+function accRows(list: State['accounts']): string {
+  const S = ctx.S;
+  return '<div class="list">' + list.map((a) => '<div class="item noleft"><button class="body" type="button" data-act="edit-account" data-acc="' + esc(a.id) + '"><span class="nm">' + esc(a.name) + (a.id === S.defAcc ? '<span class="chip nn" style="margin-left:6px">por defecto</span>' : '') + '</span><span class="meta">Tocá para ajustar el saldo</span></button><div class="amt">' + ars(accBal(S, a)) + '</div></div>').join('') + '</div>';
+}
+
+function accGroup(title: string, total: number, note: string, body: string): string {
+  return '<div class="accgrp"><div class="accgrp-h"><p class="eyebrow">' + title + '</p><b class="num">' + ars(total) + '</b></div>' + (note ? '<p class="hint">' + note + '</p>' : '') + body + '</div>';
+}
+
 export function accountsCard(): string {
-  const S = ctx.S, total = accTotal(S);
+  const S = ctx.S, total = accTotal(S), avail = S.accounts.filter((a) => !a.pending), pend = S.accounts.filter((a) => a.pending);
   return '<section class="card" ' + st('accent') + '>' + cardHead('accent', 'Tus cuentas', '<span class="sub"><b class="num">' + ars(total) + '</b></span>')
     + (S.accounts.length
-      ? '<div class="list">' + S.accounts.map((a) => '<div class="item noleft"><button class="body" type="button" data-act="edit-account" data-acc="' + esc(a.id) + '"><span class="nm">' + esc(a.name) + (a.id === S.defAcc ? '<span class="chip nn" style="margin-left:6px">por defecto</span>' : '') + '</span><span class="meta">Tocá para ajustar el saldo</span></button><div class="amt">' + ars(accBal(S, a)) + '</div></div>').join('') + '</div>'
+      ? accGroup('Disponibles', total, '', avail.length ? accRows(avail) : '<p class="empty">Todavía no tenés cuentas disponibles.</p>')
+        + accGroup('Pendientes de retiro', pendingTotal(S), 'No cuenta como plata disponible.', pend.length ? accRows(pend) : '<p class="empty">Ninguna. Usalas para la plata que juntás en Uber, Didi o Cabify y todavía no retiraste.</p>')
       : '<p class="empty">Creá una cuenta por cada lugar donde tenés plata (banco, billetera, efectivo, cuenta del auto). Cada cobro, pago y gasto que registres mueve su saldo.</p>')
     + '<div class="btns"><button class="add" style="flex:1" type="button" data-act="add-account">+ Cuenta</button>' + (S.accounts.length > 1 ? '<button class="add" style="flex:1" type="button" data-act="transfer">Transferir</button>' : '') + '</div></section>';
 }
@@ -20,7 +31,7 @@ export function vResumen(): string {
   else { cls = 'good'; head = 'El mes cierra con <b>' + ars(t.close) + '</b> a favor.'; }
   let h = '<section class="answer ' + cls + '"><p class="eyebrow">Cierre proyectado</p><p class="headline">' + head + '</p>'
     + '<div class="three"><div><span>Plata hoy</span><b>' + ars(t.cash) + '</b></div><div><span>Por pagar</span><b>' + ars(t.expDue) + '</b></div><div><span>Por cobrar</span><b>' + ars(t.incPend) + '</b></div></div>'
-    + (S.accounts.length ? '' : '<p style="margin-top:10px"><button class="link" type="button" data-act="set-cash" ' + st('accent') + '>Ajustar la plata que tengo hoy</button></p>')
+    + (hasAvail(S) ? '' : '<p style="margin-top:10px"><button class="link" type="button" data-act="set-cash" ' + st('accent') + '>Ajustar la plata que tengo hoy</button></p>')
     + (t.close < 0 && t.u.avg > 0 ? '<p class="sub" style="margin-top:10px">Con tu promedio en Uber (' + ars(t.u.avg) + ' netos por día) son unos <b class="num">' + Math.ceil(-t.close / t.u.avg) + '</b> días de trabajo.</p>' : '') + '</section>';
   h += accountsCard();
   if (empty) h += '<section class="card" ' + st('accent') + '>' + cardHead('accent', 'Por dónde empezar') + '<ol style="margin:0;padding-left:1.2rem;display:flex;flex-direction:column;gap:6px"><li>Cargá tu sueldo en <b>Ingresos</b> y tus pagos en <b>Gastos</b>, con el día en que los pagás. Tildá lo que ya pagaste.</li><li>Agregá tus <b>tarjetas</b> (cierre y vencimiento) y tus <b>deudas</b>.</li><li>Al final creá tus <b>cuentas</b> con el saldo de hoy.</li><li>Cada día anotá en <b>Hoy</b>: Uber, combustible y gastos.</li></ol></section>';
