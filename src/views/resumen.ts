@@ -1,15 +1,14 @@
-import { accBal, accTotal, ars, num, orderList, usd } from '../calc';
+import { ars, hasAvail, num, orderList, pendingTotal, usd } from '../calc';
 import { ctx, mo, tot } from '../app/ctx';
 import { cardHead, esc, st } from '../app/dom';
 import { entryRow, itemRow, when } from './rows';
 
-export function accountsCard(): string {
-  const S = ctx.S, total = accTotal(S);
-  return '<section class="card" ' + st('accent') + '>' + cardHead('accent', 'Tus cuentas', '<span class="sub"><b class="num">' + ars(total) + '</b></span>')
-    + (S.accounts.length
-      ? '<div class="list">' + S.accounts.map((a) => '<div class="item noleft"><button class="body" type="button" data-act="edit-account" data-acc="' + esc(a.id) + '"><span class="nm">' + esc(a.name) + (a.id === S.defAcc ? '<span class="chip nn" style="margin-left:6px">por defecto</span>' : '') + '</span><span class="meta">Tocá para ajustar el saldo</span></button><div class="amt">' + ars(accBal(S, a)) + '</div></div>').join('') + '</div>'
-      : '<p class="empty">Creá una cuenta por cada lugar donde tenés plata (banco, billetera, efectivo, cuenta del auto). Cada cobro, pago y gasto que registres mueve su saldo.</p>')
-    + '<div class="btns"><button class="add" style="flex:1" type="button" data-act="add-account">+ Cuenta</button>' + (S.accounts.length > 1 ? '<button class="add" style="flex:1" type="button" data-act="transfer">Transferir</button>' : '') + '</div></section>';
+/** Los dos números de cuentas: llevan a la pantalla Cuentas. */
+function moneyTiles(cash: number): string {
+  return '<section class="card" ' + st('accent') + '><div class="kpis">'
+    + '<button class="kpi tap" type="button" data-act="tab" data-tab="cuentas"><span>Plata hoy</span><b>' + ars(cash) + '</b><small>Disponible</small></button>'
+    + '<button class="kpi tap" type="button" data-act="tab" data-tab="cuentas"><span>Pendiente de retiro</span><b>' + ars(pendingTotal(ctx.S)) + '</b><small>No cuenta como disponible</small></button>'
+    + '</div></section>';
 }
 
 export function vResumen(): string {
@@ -19,10 +18,10 @@ export function vResumen(): string {
   else if (t.close < 0) { cls = 'bad'; head = 'Te faltan <b>' + ars(-t.close) + '</b>' + (r ? ' (≈ ' + usd(-t.close / r) + ')' : '') + ' para cerrar el mes.'; }
   else { cls = 'good'; head = 'El mes cierra con <b>' + ars(t.close) + '</b> a favor.'; }
   let h = '<section class="answer ' + cls + '"><p class="eyebrow">Cierre proyectado</p><p class="headline">' + head + '</p>'
-    + '<div class="three"><div><span>Plata hoy</span><b>' + ars(t.cash) + '</b></div><div><span>Por pagar</span><b>' + ars(t.expDue) + '</b></div><div><span>Por cobrar</span><b>' + ars(t.incPend) + '</b></div></div>'
-    + (S.accounts.length ? '' : '<p style="margin-top:10px"><button class="link" type="button" data-act="set-cash" ' + st('accent') + '>Ajustar la plata que tengo hoy</button></p>')
+    + '<div class="three two"><div><span>Por pagar</span><b>' + ars(t.expDue) + '</b></div><div><span>Por cobrar</span><b>' + ars(t.incPend) + '</b></div></div>'
+    + (hasAvail(S) ? '' : '<p style="margin-top:10px"><button class="link" type="button" data-act="set-cash" ' + st('accent') + '>Ajustar la plata que tengo hoy</button></p>')
     + (t.close < 0 && t.u.avg > 0 ? '<p class="sub" style="margin-top:10px">Con tu promedio en Uber (' + ars(t.u.avg) + ' netos por día) son unos <b class="num">' + Math.ceil(-t.close / t.u.avg) + '</b> días de trabajo.</p>' : '') + '</section>';
-  h += accountsCard();
+  h += moneyTiles(t.cash);
   if (empty) h += '<section class="card" ' + st('accent') + '>' + cardHead('accent', 'Por dónde empezar') + '<ol style="margin:0;padding-left:1.2rem;display:flex;flex-direction:column;gap:6px"><li>Cargá tu sueldo en <b>Ingresos</b> y tus pagos en <b>Gastos</b>, con el día en que los pagás. Tildá lo que ya pagaste.</li><li>Agregá tus <b>tarjetas</b> (cierre y vencimiento) y tus <b>deudas</b>.</li><li>Al final creá tus <b>cuentas</b> con el saldo de hoy.</li><li>Cada día anotá en <b>Hoy</b>: Uber, combustible y gastos.</li></ol></section>';
   const items = orderList(t), first = items.filter((x) => !x.covered)[0];
   let call: string;

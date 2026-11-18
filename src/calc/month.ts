@@ -1,5 +1,5 @@
 import type { Month, State } from '../types';
-import { accTotal } from './accounts';
+import { accTotal, hasAvail } from './accounts';
 import { stmtOf } from './cards';
 import { debtEntries, type Entry } from './debts';
 import { dateOf, periodKey } from './period';
@@ -83,7 +83,7 @@ export function totals(S: State, k: string, todayKey: string): Totals {
   const salIn = incIn, salAll = incAll;
   incAll += u.net; incIn += u.net;
   e.forEach((x) => { expAll += x.ars; if (x.done) expPaid += x.ars; });
-  if (k === todayKey && S.accounts.length) op = accTotal(S) - (incIn - expPaid);
+  if (k === todayKey && hasAvail(S)) op = accTotal(S) - (incIn - expPaid);
   return { e, u, opening: op, salIn, salAll, incAll, incIn, incPend: incAll - incIn, expAll, expPaid, expDue: expAll - expPaid, cash: op + incIn - expPaid, close: op + incAll - expAll };
 }
 

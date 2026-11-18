@@ -153,6 +153,8 @@ test('a 400px de ancho no hay scroll horizontal en ninguna pestaña', async ({ p
   }
   await page.getByRole('button', { name: 'Datos' }).click();
   await noHorizontalScroll(page);
+  await page.getByRole('button', { name: 'Cuentas', exact: true }).click();
+  await noHorizontalScroll(page);
   await nav(page, 'Deudas').click();
   await page.getByRole('button', { name: 'Registrar pago' }).first().click();
   await noHorizontalScroll(page);
@@ -164,6 +166,88 @@ test('tema oscuro: respeta el del sistema', async ({ page }) => {
   await page.goto('/');
   const bg = await page.evaluate(() => getComputedStyle(document.body).backgroundColor);
   expect(bg).toBe('rgb(14, 19, 27)');
+});
+
+/** Monto en pesos de un texto como "$ 1.234,56" (toma el primero). */
+async function pesos(loc: import('@playwright/test').Locator): Promise<number> {
+  const m = (await loc.innerText()).match(/-?\$\s*([\d.]+,\d{2})/);
+  return Number(m![1].replace(/\./g, '').replace(',', '.'));
+}
+
+test('cuenta pendiente de punta a punta: crear, ingreso Uber, retirar y actualizar saldo', async ({ page }) => {
+  await new FakeSupabase(richState()).install(page);
+  await login(page);
+  await expect(page.getByRole('heading', { name: 'Cuentas del mes' })).toBeVisible();
+  // Cuentas no está en la barra de abajo: se abre desde el encabezado.
+  await expect(nav(page, 'Cuentas')).toHaveCount(0);
+  const plataHoy = page.getByRole('button', { name: /^Plata hoy/ }), pendiente = page.getByRole('button', { name: /^Pendiente de retiro/ });
+  const cash0 = await pesos(plataHoy);
+  expect(await pesos(pendiente)).toBe(0);
+
+  // Crear la cuenta pendiente, sin destino vinculado y sin opción de cuenta por defecto.
+  await page.getByRole('button', { name: 'Cuentas', exact: true }).click();
+  await page.getByRole('button', { name: '+ Cuenta pendiente' }).click();
+  const sheet = page.locator('#sheet');
+  await expect(sheet.getByLabel('¿Cuenta por defecto?')).toHaveCount(0);
+  await sheet.getByLabel('Nombre').fill('Uber');
+  await sheet.getByLabel('Saldo actual ($ ARS)').fill('10000');
+  await sheet.getByLabel('Cuenta destino al retirar').selectOption({ label: 'Elegirla al retirar' });
+  await sheet.getByRole('button', { name: 'Guardar' }).click();
+  const row = page.locator('.item[data-acc]').filter({ hasText: 'Uber' });
+  await expect(row).toContainText('Sin cuenta destino vinculada');
+
+  // Ingreso Uber: "Entra a" propone la pendiente; los gastos no la ofrecen.
+  await nav(page, 'Hoy').click();
+  await expect(page.locator('#u-med option:checked')).toHaveText('Uber');
+  await page.getByText('Gasto del auto').click();
+  await expect(page.locator('#u-med option', { hasText: 'Uber' })).toHaveCount(0);
+  await page.getByText('Ingreso Uber').click();
+  await expect(page.locator('#u-med option:checked')).toHaveText('Uber');
+  await page.locator('#u-amt').fill('25000');
+  await page.getByRole('button', { name: 'Agregar' }).click();
+
+  // En Resumen lo pendiente sube y la plata de hoy no cambia.
+  await nav(page, 'Resumen').click();
+  expect(await pesos(pendiente)).toBe(35000);
+  expect(await pesos(plataHoy)).toBe(cash0);
+  await pendiente.click();
+  const banco = page.locator('.item:not([data-acc])').filter({ hasText: 'Banco de prueba' });
+  const banco0 = await pesos(banco);
+
+  // Retirar: monto precargado con todo; sin destino obliga a elegir y ofrece vincularlo.
+  await row.getByRole('button', { name: 'Retirar' }).click();
+  await expect(sheet.getByLabel('Monto ($ ARS)')).toHaveValue('35000');
+  await sheet.getByLabel('Monto ($ ARS)').fill('30000');
+  await sheet.getByRole('button', { name: 'Retirar' }).click();
+  await expect(page.locator('#note')).toHaveText('Elegí la cuenta a la que retirás.');
+  await expect(sheet).toBeVisible();
+  await sheet.locator('select[name=to]').selectOption({ label: 'Banco de prueba' });
+  await expect(sheet.getByLabel(/Guardarla como cuenta destino/)).toBeChecked();
+  await sheet.getByRole('button', { name: 'Retirar' }).click();
+  await expect(sheet).toBeHidden();
+  await expect(page.locator('#note')).toContainText('Quedan $');
+
+  expect(await pesos(row)).toBe(5000);
+  await expect(row).toContainText('Se retira a Banco de prueba');
+  expect(await pesos(banco)).toBeCloseTo(banco0 + 30000, 2);
+
+  // La próxima vez la destino viene precargada.
+  await row.getByRole('button', { name: 'Retirar' }).click();
+  await expect(sheet.locator('select[name=to] option:checked')).toHaveText('Banco de prueba');
+  await expect(sheet.getByLabel(/Guardarla como cuenta destino/)).toHaveCount(0);
+  await page.keyboard.press('Escape');
+
+  // Actualizar saldo con lo que muestra la app.
+  await row.getByRole('button', { name: 'Actualizar saldo' }).click();
+  await sheet.getByLabel('Saldo real en la app ($ ARS)').fill('4500');
+  await sheet.getByRole('button', { name: 'Guardar' }).click();
+  await expect(page.locator('#note')).toContainText('Saldo actualizado');
+  expect(await pesos(row)).toBe(4500);
+
+  await nav(page, 'Resumen').click();
+  expect(await pesos(pendiente)).toBe(4500);
+  expect(await pesos(plataHoy)).toBeCloseTo(cash0 + 30000, 2);
+  await noHorizontalScroll(page);
 });
 
 test('iOS: los campos tienen letra de 16px o más y los botones no esperan el doble toque', async ({ page }) => {
@@ -184,8 +268,12 @@ test('iOS: los campos tienen letra de 16px o más y los botones no esperan el do
   }
   await page.getByRole('button', { name: 'Datos' }).click();
   await check();
-  await nav(page, 'Resumen').click();
-  await page.getByRole('button', { name: '+ Cuenta' }).click();
+  await page.getByRole('button', { name: 'Cuentas', exact: true }).click();
+  await check();
+  await page.getByRole('button', { name: '+ Cuenta', exact: true }).click();
+  await check();
+  await page.keyboard.press('Escape');
+  await page.getByRole('button', { name: '+ Cuenta pendiente' }).click();
   await check();
   await noHorizontalScroll(page);
 });

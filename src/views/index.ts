@@ -2,6 +2,7 @@ import { MONTHS, num, periodRange } from '../calc';
 import { ctx, type Tab } from '../app/ctx';
 import { $, st } from '../app/dom';
 import { vAnalisis } from './analisis';
+import { vCuentas } from './cuentas';
 import { vDatos } from './datos';
 import { vDebts } from './debts';
 import { vExpenses } from './expenses';
@@ -18,7 +19,7 @@ const NAV: [Tab, string, string, string][] = [
   ['debts', 'Deudas', 'debt', SVG + '<path d="M3 9l9-5 9 5M5 10v8M10 10v8M14 10v8M19 10v8M3 20h18"/></svg>'],
   ['analisis', 'Análisis', 'accent', SVG + '<path d="M5 20V11M12 20V4M19 20v-6"/></svg>'],
 ];
-const VIEWS: Record<Tab, () => string> = { resumen: vResumen, income: vIncome, uber: vUber, expenses: vExpenses, debts: vDebts, analisis: vAnalisis, datos: vDatos };
+const VIEWS: Record<Tab, () => string> = { resumen: vResumen, income: vIncome, uber: vUber, expenses: vExpenses, debts: vDebts, analisis: vAnalisis, datos: vDatos, cuentas: vCuentas };
 
 export function render(): void {
   const S = ctx.S, key = ctx.key;

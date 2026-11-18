@@ -1,7 +1,8 @@
-import { ars, dayItems, dayStats, mlab, uberReal, type DayItem } from '../calc';
+import { ars, availAccounts, dayItems, dayStats, mlab, pendingAccounts, uberInAcc, uberReal, type DayItem } from '../calc';
 import { ctx, type UType } from '../app/ctx';
 import { $, cardHead, esc, st } from '../app/dom';
 import { CATS } from '../state';
+import type { Account } from '../types';
 
 const UCAT: Record<UType, string[]> = { in: CATS.uin, out: CATS.auto, exp: CATS.gasto };
 export const MEDL: Record<UType, string> = { in: 'Entra a', out: 'Sale de', exp: 'Pagué con' };
@@ -17,7 +18,11 @@ function catOpts(t: UType): string {
 /** Opciones de "Entra a / Sale de / Pagué con": cuentas y, para gastos, tarjetas. */
 function medOpts(t: UType): string {
   const S = ctx.S;
-  let o = S.accounts.map((a) => '<option value="' + esc(a.id) + '"' + (a.id === S.defAcc ? ' selected' : '') + '>' + esc(a.name) + '</option>').join('');
+  // Las pendientes de retiro (Uber, Didi, Cabify) solo reciben ingresos Uber; ahí se proponen primero.
+  const sel = t === 'in' ? uberInAcc(S) : S.defAcc, opt = (a: Account) => '<option value="' + esc(a.id) + '"' + (a.id === sel ? ' selected' : '') + '>' + esc(a.name) + '</option>';
+  const pe = t === 'in' ? pendingAccounts(S) : [];
+  let o = availAccounts(S).map(opt).join('');
+  if (pe.length) o += '<optgroup label="Pendientes de retiro">' + pe.map(opt).join('') + '</optgroup>';
   if (!o) o = '<option value="">(sin cuenta)</option>';
   if (t === 'exp' && S.cards.length) o += '<optgroup label="Tarjeta de crédito">' + S.cards.map((c) => '<option value="card:' + esc(c.id) + '">' + esc(c.name) + '</option>').join('') + '</optgroup>';
   return o;

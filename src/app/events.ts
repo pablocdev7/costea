@@ -1,6 +1,6 @@
 import { ars, dueCal, mlab, num, periodKey, shiftKey, stmtOf } from '../calc';
 import { nid } from '../calc/util';
-import { accountSheet, cardSheet, cashSheet, closeSheet, consumoSheet, debtSheet, itemSheet, payFixedSheet, payLoanSheet, stmtSheet, submitSheet, transferSheet, updPrev } from '../sheets';
+import { accountSheet, adjustSheet, cardSheet, cashSheet, closeSheet, consumoSheet, debtSheet, itemSheet, payFixedSheet, payLoanSheet, pendingSheet, stmtSheet, submitSheet, transferSheet, updPrev, withdrawSheet } from '../sheets';
 import { parseImport } from '../state';
 import { flush, hasPending, persist as persistState, pull } from '../storage/sync';
 import { render } from '../views';
@@ -110,6 +110,10 @@ export function bindEvents(onLogout: () => void): void {
     if (act === 'set-cash') return cashSheet();
     if (act === 'add-account') return accountSheet(null);
     if (act === 'edit-account') return accountSheet(b.dataset.acc!);
+    if (act === 'add-pending') return pendingSheet(null);
+    if (act === 'edit-pending') return pendingSheet(b.dataset.acc!);
+    if (act === 'withdraw') return withdrawSheet(b.dataset.acc!);
+    if (act === 'adjust-pending') return adjustSheet(b.dataset.acc!);
     if (act === 'transfer') return transferSheet();
     if (act === 'toggle-stmt') {
       const sk = b.dataset.card + '|' + key, so = (S.stmts[sk] = S.stmts[sk] || {}), cd0 = S.cards.find((x) => x.id === b.dataset.card)!;
@@ -141,9 +145,12 @@ export function bindEvents(onLogout: () => void): void {
           S.consumos = S.consumos.filter((x) => x.cardId !== c.id);
           S.cards.splice(ki, 1);
         }
-      } else if (c.kind === 'account') {
+      } else if (c.kind === 'account' || c.kind === 'pending') {
         const ai = S.accounts.findIndex((x) => x.id === c.id);
-        if (ai >= 0) { ctx.last = { k: 'account', item: S.accounts[ai], ix: ai, def: S.defAcc }; S.accounts.splice(ai, 1); if (S.defAcc === c.id) S.defAcc = S.accounts[0] ? S.accounts[0].id : ''; }
+        if (ai >= 0) {
+          ctx.last = { k: 'account', item: S.accounts[ai], ix: ai, def: S.defAcc }; S.accounts.splice(ai, 1);
+          if (S.defAcc === c.id) { const f = S.accounts.find((x) => !x.pending); S.defAcc = f ? f.id : ''; }
+        }
       } else if (c.kind === 'stmt') { const sk2 = c.cardId + '|' + key; if (S.stmts[sk2]) S.stmts[sk2].real = ''; }
       closeSheet(); persist(); render();
       note(c.kind === 'stmt' ? 'Quité el monto del resumen.' : 'Eliminado. <button type="button" data-act="undo">Deshacer</button>', 8000);

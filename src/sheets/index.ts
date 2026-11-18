@@ -1,9 +1,9 @@
-import { accBal, ars, dueCal, loanInfo, mlab, money, num, r2, splitLoanPayment, stmtOf } from '../calc';
+import { accBal, adjustTo, ars, availAccounts, dueCal, linkedTarget, loanInfo, mlab, money, num, r2, splitLoanPayment, stmtOf, withdraw } from '../calc';
 import { ctx, mo, pk, tot, type SheetCtx } from '../app/ctx';
 import { $, esc, note, st } from '../app/dom';
 import { CATS } from '../state';
 import { nid } from '../calc/util';
-import type { Cur, Debt } from '../types';
+import type { Account, Cur, Debt } from '../types';
 import { SC } from '../views/rows';
 
 type Opt = [string, string];
@@ -16,9 +16,12 @@ function fs(label: string, name: string, opts: Opt[], val: string | undefined): 
   return '<label class="fld"><span>' + label + '</span><select name="' + name + '">' + opts.map((o) => '<option value="' + esc(o[0]) + '"' + (o[0] === val ? ' selected' : '') + '>' + o[1] + '</option>').join('') + '</select></label>';
 }
 const CUR: Opt[] = [['ARS', 'Pesos (ARS)'], ['USD', 'Dólares (USD)']];
-function accSel(label: string, name: string, val?: string): string {
-  return fs(label, name, ([['', 'Cuenta por defecto']] as Opt[]).concat(ctx.S.accounts.map((a) => [a.id, esc(a.name)] as Opt)), val || '');
+/** Selector de cuenta. Las pendientes de retiro solo se ofrecen donde entra plata (withPending). */
+function accSel(label: string, name: string, val?: string, withPending = false): string {
+  const list = withPending ? ctx.S.accounts : availAccounts(ctx.S);
+  return fs(label, name, ([['', 'Cuenta por defecto']] as Opt[]).concat(list.map((a) => [a.id, esc(a.name)] as Opt)), val || '');
 }
+const availOpts = (): Opt[] => availAccounts(ctx.S).map((a) => [a.id, esc(a.name)] as Opt);
 function catSel(list: string[], val?: string): string {
   return fs('Categoría', 'cat', ([['', 'Sin categoría']] as Opt[]).concat(list.map((c) => [c, esc(c)] as Opt)), val || '');
 }
@@ -51,7 +54,7 @@ export function itemSheet(sec: 'income' | 'fixed', id: string | null, mk?: strin
     + '<div class="pair">' + fi('Monto', 'amt', 'number', it ? it.amt : '', ' min="0" required') + fs('Moneda', 'cur', CUR, it ? it.cur : 'ARS') + '</div>'
     + (sec === 'fixed' ? fi('Día en que lo pagás', 'day', 'number', it ? it.day : '', ' min="1" max="31"') : '')
     + catSel(sec === 'income' ? CATS.ing : CATS.fijo, it ? it.cat : '')
-    + accSel(sec === 'income' ? 'Entra a' : 'Se paga desde', 'acc', it ? it.acc : '')
+    + accSel(sec === 'income' ? 'Entra a' : 'Se paga desde', 'acc', it ? it.acc : '', sec === 'income')
     + (sec === 'fixed' ? '<p class="hint">El día cuenta para el período que corresponda según tu mes (ver Datos).</p>' : ''),
     'Guardar', !!id, false, SC[sec]);
 }
@@ -108,10 +111,43 @@ export function stmtSheet(cardId: string): void {
 
 export function accountSheet(id: string | null): void {
   const S = ctx.S, a = id ? S.accounts.find((x) => x.id === id) : null;
+  if (a && a.pending) return pendingSheet(a.id);
   openSheet({ kind: 'account', id }, id ? 'Editar cuenta' : 'Nueva cuenta',
     fi('Nombre', 'name', 'text', a ? a.name : '', ' placeholder="Ej: Cuenta del auto" required') + fi('Saldo hoy ($ ARS)', 'bal', 'number', a ? r2(accBal(S, a)) : '', ' required')
-    + ((a || S.accounts.length) ? fs('¿Cuenta por defecto?', 'def', [['0', 'No'], ['1', 'Sí, usarla por defecto']], a && a.id === S.defAcc ? '1' : '0') : '')
+    + ((a || availAccounts(S).length) ? fs('¿Cuenta por defecto?', 'def', [['0', 'No'], ['1', 'Sí, usarla por defecto']], a && a.id === S.defAcc ? '1' : '0') : '')
     + '<p class="hint">El saldo que pongas es el de este momento. Desde acá se mueve solo con lo que registres.</p>', 'Guardar', !!id, false, 'accent');
+}
+
+/** Alta y edición de una cuenta pendiente de retiro (Uber, Didi, Cabify). Nunca es la cuenta por defecto. */
+export function pendingSheet(id: string | null): void {
+  const S = ctx.S, a = id ? S.accounts.find((x) => x.id === id) : null, to = a ? linkedTarget(S, a) : undefined;
+  openSheet({ kind: 'pending', id }, id ? 'Editar cuenta pendiente' : 'Nueva cuenta pendiente',
+    fi('Nombre', 'name', 'text', a ? a.name : '', ' placeholder="Ej: Uber, Didi, Cabify" required') + fi('Saldo actual ($ ARS)', 'bal', 'number', a ? r2(accBal(S, a)) : '', ' required')
+    + fs('Cuenta destino al retirar', 'withdrawTo', ([['', 'Elegirla al retirar']] as Opt[]).concat(availOpts()), to ? to.id : (a ? '' : S.defAcc))
+    + '<p class="hint">Es la plata que juntás en la app y todavía no retiraste: no cuenta como plata disponible hasta que la retires.</p>', 'Guardar', !!id, false, 'accent');
+}
+
+/** Retirar de una pendiente: monto (todo el saldo, editable) y cuenta destino (la vinculada, cambiable). */
+export function withdrawSheet(id: string): void {
+  const S = ctx.S, a = S.accounts.find((x) => x.id === id);
+  if (!a) return;
+  const opts = availOpts();
+  if (!opts.length) { note('Primero creá una cuenta disponible para recibir el retiro.'); return; }
+  const to = linkedTarget(S, a), bal = r2(accBal(S, a));
+  openSheet({ kind: 'withdraw', id }, 'Retirar de ' + a.name,
+    fi('Monto ($ ARS)', 'amt', 'number', bal > 0 ? bal : '', ' min="0" max="' + Math.max(0, bal) + '" required')
+    + fs('Cuenta destino', 'to', to ? opts : ([['', 'Elegí una cuenta']] as Opt[]).concat(opts), to ? to.id : '')
+    + (to ? '' : '<label class="inl"><input type="checkbox" name="link" value="1" checked> Guardarla como cuenta destino de ' + esc(a.name) + '</label>')
+    + '<p class="hint">Hay <b class="num">' + ars(bal) + '</b> pendientes. Si retirás menos, el resto sigue pendiente.</p>', 'Retirar', false, false, 'accent');
+}
+
+/** Poner el saldo real que muestra la app; la diferencia se ajusta sola. */
+export function adjustSheet(id: string): void {
+  const S = ctx.S, a = S.accounts.find((x) => x.id === id);
+  if (!a) return;
+  openSheet({ kind: 'adjust', id }, 'Actualizar saldo de ' + a.name,
+    fi('Saldo real en la app ($ ARS)', 'bal', 'number', r2(accBal(S, a)), ' required')
+    + '<p class="hint">Poné el saldo que ves en la app de Uber, Didi o Cabify. La diferencia con lo que tenías anotado se ajusta sola.</p>', 'Guardar', false, false, 'accent');
 }
 
 export function transferSheet(): void {
@@ -216,7 +252,27 @@ export function submitSheet(form: HTMLFormElement): boolean {
     if (!an) { note('Poné un nombre.'); return false; }
     const bal = num(str(fd, 'bal')), ac = c.id ? S.accounts.find((x) => x.id === c.id) : null;
     if (ac) { ac.name = an; ac.base = bal; ac.baseAt = Date.now(); if (str(fd, 'def') === '1') S.defAcc = ac.id; }
-    else { const na = { id: nid(), name: an, base: bal, baseAt: Date.now() }; S.accounts.push(na); if (!S.defAcc || str(fd, 'def') === '1') S.defAcc = na.id; }
+    else { const na: Account = { id: nid(), name: an, base: bal, baseAt: Date.now() }; S.accounts.push(na); if (!S.defAcc || str(fd, 'def') === '1') S.defAcc = na.id; }
+  } else if (c.kind === 'pending') {
+    const pn = str(fd, 'name').trim();
+    if (!pn) { note('Poné un nombre.'); return false; }
+    const bal = num(str(fd, 'bal')), wt = str(fd, 'withdrawTo'), pa = c.id ? S.accounts.find((x) => x.id === c.id) : null;
+    const acc: Account = pa || { id: nid(), name: pn, base: bal, baseAt: Date.now(), pending: true };
+    if (pa) { pa.name = pn; pa.base = bal; pa.baseAt = Date.now(); } else S.accounts.push(acc);
+    if (wt && availAccounts(S).some((x) => x.id === wt)) acc.withdrawTo = wt; else delete acc.withdrawTo;
+  } else if (c.kind === 'withdraw') {
+    const a = S.accounts.find((x) => x.id === c.id)!, to = str(fd, 'to'), amt = num(str(fd, 'amt'));
+    if (!to) { note('Elegí la cuenta a la que retirás.'); return false; }
+    const err = withdraw(S, a.id, to, amt, Date.now(), nid());
+    if (err) { note(err); return false; }
+    if (str(fd, 'link') === '1') a.withdrawTo = to;
+    const left = r2(accBal(S, a)), tn = S.accounts.find((x) => x.id === to)!.name;
+    note('Retiraste ' + ars(amt) + ' a ' + esc(tn) + '.' + (left > 0.005 ? ' Quedan ' + ars(left) + ' pendientes.' : ''));
+  } else if (c.kind === 'adjust') {
+    const a = S.accounts.find((x) => x.id === c.id)!, s0 = str(fd, 'bal');
+    if (s0 === '') { note('Poné el saldo.'); return false; }
+    const d = adjustTo(S, a, num(s0), Date.now());
+    note(Math.abs(d) < 0.005 ? 'El saldo ya coincidía.' : 'Saldo actualizado: ' + (d > 0 ? '+' : '') + ars(d) + '.');
   } else if (c.kind === 'transfer') {
     const tf = str(fd, 'from'), tt = str(fd, 'to'), ta = num(str(fd, 'amt'));
     if (tf === tt || !(ta > 0)) { note('Elegí dos cuentas distintas y un monto mayor a cero.'); return false; }
