@@ -208,3 +208,15 @@ body{margin:0}
 @media (max-width:420px){.three{gap:6px}.three b{font-size:.76rem;letter-spacing:-.02em}}
 /* "Día por día" de Análisis: en pantallas angostas el detalle va arriba y la barra abajo. */
 @media (max-width:520px){.sbar.dd{grid-template-columns:3rem minmax(0,1fr);row-gap:4px;padding:2px 0}.sbar.dd .bar{grid-column:1/-1;grid-row:2}.sbar.dd .pc{white-space:normal}}
+
+/* iOS hace zoom al enfocar un campo con letra menor a 16px: piso de 16px para todos.
+   Va al final y con !important para ganarle a reglas más específicas (.ov textarea);
+   .big-in, que es más grande, sigue ganando por especificidad. */
+input,select,textarea{font-size:max(16px,1em)!important}
+/* Interlineado más chico para que, con la letra más grande, cada campo mantenga la altura que tenía. */
+input:not(.big-in),select{line-height:1.22}
+.fld input:not(.big-in){line-height:1.13}
+/* El select no usa el interlineado: se compensa con 2px menos de relleno arriba y abajo. */
+.fld select{padding-block:calc(.6rem - 2px)}
+/* Sin la demora del doble toque para zoom en botones. */
+button,[role=button],input[type=submit],input[type=button]{touch-action:manipulation}
